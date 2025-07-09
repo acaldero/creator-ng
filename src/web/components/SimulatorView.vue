@@ -27,6 +27,8 @@ import Examples from "./assembly/Examples.vue"
 import Memory from "./simulator/Memory.vue"
 import Monitor from "./simulator/Monitor.vue"
 import Keyboard from "./simulator/Keyboard.vue"
+import Calculator from "./simulator/Calculator.vue"
+import Stats from "./simulator/Stats.vue"
 
 import { architecture } from "@/core/core.mjs"
 import { instructions } from "@/core/compiler/compiler.mjs"
@@ -42,10 +44,11 @@ export default {
     reg_representation_int: { type: String, required: true },
     reg_representation_float: { type: String, required: true },
     reg_name_representation: { type: String, required: true },
+    stat_representation: { type: String, required: true },
+    stat_type: { type: String, required: true },
     enter: [Boolean, null],
     stack_total_list: Number,
     main_memory_busy: Boolean,
-    main_memory: Object,
     display: String,
     keyboard: String,
   },
@@ -59,12 +62,14 @@ export default {
     Memory,
     Monitor,
     Keyboard,
+    Calculator,
+    Stats,
   },
 
   data() {
     return {
-      architecture: architecture,
-      instructions: instructions,
+      architecture,
+      instructions,
 
       // stack
       callee_subrutine: "",
@@ -115,7 +120,7 @@ export default {
         />
 
         <!-- Calculator -->
-        <!-- <Calculator id="calculator" /> -->
+        <Calculator id="calculator" />
 
         <b-container fluid align-h="center" class="mx-0 px-0">
           <b-row align-h="center">
@@ -154,28 +159,25 @@ export default {
               <!-- Memory view-->
               <Memory
                 v-if="data_mode === 'memory'"
+                ref="memory"
                 id="memory"
                 :callee_subrutine="callee_subrutine"
                 :caller_subrutine="caller_subrutine"
                 :stack_total_list="stack_total_list"
-                :main_memory_busy="main_memory_busy"
-                :main_memory="main_memory"
                 :memory_layout="architecture.memory_layout"
                 :end_callee="end_callee"
                 :dark="dark"
               />
 
               <!-- Stats view--->
-              <!-- <Stats :stats="stats" :stats_value="stats_value" v-if="data_mode ==
-              'stats'" /> -->
+              <Stats
+                v-if="data_mode === 'stats'"
+                ref="stats"
+                :dark="dark"
+                :representation="stat_representation"
+                :type="stat_type"
+              />
 
-              <!-- CLK Cycles view--->
-              <!-- <ClkCycles
-                :clk_cycles="clk_cycles"
-                :clk_cycles_value="clk_cycles_value"
-                :total_clk_cycles="total_clk_cycles"
-                v-if="data_mode == 'clk_cycles'"
-              /> -->
             </b-col>
 
             <!-- Monitor & keyboard -->
@@ -218,6 +220,12 @@ export default {
   .consoleIcon {
     height: 5vh;
     opacity: 0.6;
+  }
+
+  .groupLabelling {
+    float: top;
+    position: relative;
+    top: -0.6vw;
   }
 }
 

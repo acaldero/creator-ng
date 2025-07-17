@@ -26,13 +26,8 @@ import { main_memory } from "@/core/core.mjs"
 
 export default {
   props: {
-    // callee_subrutine: { type: String, required: true }, // TODO: optional
-    // caller_subrutine: { type: String, required: true }, // TODO: optional
-    // stack_total_list: { type: Number, required: true },
-    // main_memory_busy: { type: Boolean, required: true },
-    // memory_layout: { type: Object, required: true },
-    // end_callee: { type: Number, required: true },
     dark: { type: Boolean, required: true },
+    selectedSegment: { type: String, required: true }
   },
 
   components: { MemoryTable },
@@ -41,7 +36,6 @@ export default {
     return {
       main_memory,
       track_stack_names,
-      memory_segment: "data",
       mem_representation_options: main_memory
         .getMemorySegments()
         .keys()
@@ -49,6 +43,19 @@ export default {
         .map(s => ({ text: s.charAt(0).toUpperCase() + s.slice(1), value: s })),
     }
   },
+
+  computed: {
+
+    // sync w/ root
+    segment: {
+      get() {
+        return this.selectedSegment
+      },
+      set(value) {
+          this.$root.memory_segment = value
+      },
+    },
+  }
 }
 </script>
 
@@ -67,7 +74,7 @@ export default {
           </b-badge>
           <b-form-radio-group
             :class="{ 'w-100': true, 'mb-1': true, border: dark }"
-            v-model="memory_segment"
+            v-model="segment"
             :options="mem_representation_options"
             :button-variant="dark ? 'dark' : 'outline-secondary'"
             outline
@@ -86,7 +93,7 @@ export default {
           class="my-2"
           ref="memory_table"
           :main_memory="main_memory"
-          :memory_segment="memory_segment"
+          :segment="segment"
         />
       </b-col>
     </b-row>

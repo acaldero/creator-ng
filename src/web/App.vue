@@ -40,8 +40,6 @@ import { stats } from "@/core/executor/stats.mts"
 
 import { instructions } from "@/core/compiler/compiler.mjs"
 
-import { track_stack_names } from "@/core/memory/stackTracker.mjs"
-
 import SpinnerLoading from "./components/general/SpinnerLoading.vue"
 import SupportedBrowsers from "./components/general/SupportedBrowsers.vue"
 import FormConfiguration from "./components/general/FormConfiguration.vue"
@@ -178,10 +176,8 @@ export default {
       architecture,
       architecture_hash,
 
-
       // Architecture edit code
       arch_code: "",
-
 
       /************/
       /* Assembly */
@@ -225,17 +221,16 @@ export default {
       reg_representation_int: "signed",
       reg_representation_float: "ieee32",
       reg_name_representation: "alias",
-
+      memory_segment: "data",
 
       // Stack
-      track_stack_names,
-      // callee_subrutine: "",
-      // caller_subrutine: "",
-      // stack_pointer: 0,
-      // begin_caller: 0,
-      // end_caller: 0,
-      // begin_callee: 0,
-      // end_callee: 0,
+      callee_subrutine: "",
+      caller_subrutine: "",
+      stack_pointer: 0,
+      begin_caller: 0,
+      end_caller: 0,
+      begin_callee: 0,
+      end_callee: 0,
 
       //
       // Stats
@@ -591,6 +586,7 @@ export default {
     :reg_name_representation="reg_name_representation"
     :stat_representation="stat_representation"
     :stat_type="stat_type"
+    :memory_segment="memory_segment"
     :architecture_name="architecture_name"
     :arch_available="arch_available"
     :enter="enter"

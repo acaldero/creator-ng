@@ -31,11 +31,11 @@ import arch_available from "/architecture/available_arch.json"
 import {
   notifications,
   show_notification,
-  loadArchitecture,
+  loadDefaultArchitecture,
   loadExample,
 } from "./utils.mjs"
 
-import { architecture, architecture_hash, set_debug } from "@/core/core.mjs"
+import { set_debug } from "@/core/core.mjs"
 import { stats } from "@/core/executor/stats.mts"
 
 import { instructions } from "@/core/compiler/compiler.mjs"
@@ -99,6 +99,7 @@ export default {
 
       // Version Number
       version: package_json.version,
+      simulatorViewKey: 0, // Add a key for SimulatorView to force re-render
 
       // Architecture name and guide
       architecture_name: "",
@@ -110,6 +111,10 @@ export default {
 
       // Displayed notifications
       notifications, //TODO: copy or only in app?
+
+      // window size
+      windowHeight: window.innerHeight,
+      windowWidth: window.innerWidth,
 
       //
       // Current view
@@ -166,15 +171,9 @@ export default {
       // Available architectures
       //
 
-      arch_available, //TODO: copy or only in app?
-
       /****************/
       /* Architecture */
       /****************/
-
-      // Load architecture
-      architecture,
-      architecture_hash,
 
       // Architecture edit code
       arch_code: "",
@@ -265,11 +264,25 @@ export default {
     }
   },
 
+  computed: {
+    arch_available() {
+      const architectures = arch_available.map(a => ({ ...a, default: true }))
+      const customArchs = JSON.parse(
+        localStorage.getItem("customArchitectures"),
+      )
+
+      if (customArchs) {
+        architectures.push(...customArchs)
+      }
+
+      return architectures
+    },
+  },
+
   /************************
    * Created vue instance *
    ************************/
   created() {
-    // uielto_preload_architecture.methods.load_arch_available()
     this.os = this.detect_os()
     this.browser = this.detect_browser()
     this.get_target_port()
@@ -281,26 +294,26 @@ export default {
   mounted() {
     // Preload following URL params
     this.loadFromURI()
-    // const url_hash = creator_preload_get2hash(window.location)
-    // creator_preload_fromHash(this, url_hash)
+
+    // set config
     this.set_dark_mode()
     set_debug(this.c_debug)
+
+    // listener for window size changes
+    window.addEventListener("resize", this.resizeHandler)
   },
 
-  /*************
-   * Before UI *
-   *************/
-  beforeUpdate() {
-    // uielto_configuration.methods.get_configuration()
+  unmounted() {
+    window.removeEventListener("resize", this.resizeHandler)
   },
 
   /***************
-   * Vue methots *
+   * Vue methods *
    ***************/
 
   methods: {
     /*******************
-     * General methots *
+     * General methods *
      *******************/
 
     /**
@@ -358,12 +371,6 @@ export default {
         "data-bs-theme",
         this.dark ? "dark" : "light",
       )
-      // if (this.dark) {
-      //   document.getElementsByTagName("body")[0].style =
-      //     "filter: invert(88%) hue-rotate(160deg) !important; background-color: #111 !important;"
-      // } else {
-      //   document.getElementsByTagName("body")[0].style = ""
-      // }
     },
 
     /**
@@ -406,7 +413,7 @@ export default {
       // (App) in `document.app` once its mounted. But in this point of the
       // code, App is still not mounted, so `document.app` is undefined.
       // The hack is to pass the component to the function so it can use it.
-      loadArchitecture(arch, this)
+      loadDefaultArchitecture(arch, this)
 
       // load assembly code
       if (asm !== null) {
@@ -457,6 +464,11 @@ export default {
     //Get target por by SO
     get_target_port() {
       this.target_port = this.target_ports[this.os]
+    },
+
+    resizeHandler(_e) {
+      this.windowHeight = window.innerHeight
+      this.windowWidth = window.innerWidth
     },
   },
 }
@@ -510,7 +522,7 @@ export default {
     <UIeltoInstitutions id="institutions" />
 
     <!-- About modal -->
-    <UIeltoAbout id="about" />
+    <UIeltoAbout id="about" :dark="dark"/>
 
     <!-- Instruction Help sidebar -->
     <!-- we don't want to load this unless we have selected an architecture -->
@@ -534,6 +546,8 @@ export default {
     :arch_available="arch_available"
     :browser="browser"
     :os="os"
+    :dark="dark"
+    :window-height="windowHeight"
     ref="selectArchitectureView"
     @select-architecture="
       arch_name => {
@@ -589,17 +603,18 @@ export default {
     :memory_segment="memory_segment"
     :architecture_name="architecture_name"
     :arch_available="arch_available"
+    :instructions="instructions"
     :enter="enter"
     :browser="browser"
     :os="os"
-    :stack_total_list="stack_total_list"
+    :window-height="windowHeight"
+    :window-width="windowWidth"
     :display="display"
     :keyboard="keyboard"
     :dark="dark"
     ref="simulatorView"
+    :key="simulatorViewKey"
   />
-
-  {{ keyboard }}
 </template>
 
 <style lang="scss" scoped>
@@ -751,7 +766,7 @@ export default {
     padding: 1%;
   }
 
-  // for some reason this doesn't work
+  // for some reason this doesn't affect sub-components
   [data-bs-theme="dark"] {
     .buttonBackground {
       background-color: #212529;

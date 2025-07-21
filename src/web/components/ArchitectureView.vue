@@ -23,6 +23,7 @@ import { architecture } from "@/core/core.mjs"
 
 import UIeltoToolbar from "./general/UIeltoToolbar.vue"
 import EditArchitecture from "./architecture/EditArchitecture.vue"
+import DownloadPopup from "./general/DownloadModal.vue"
 import ArchConf from "./architecture/configuration/ArchConf.vue"
 import MemoryLayout from "./architecture/memory_layout/MemoryLayout.vue"
 import RegisterFileArch from "./architecture/register_file/RegisterFileArch.vue"
@@ -42,6 +43,7 @@ export default {
   components: {
     UIeltoToolbar,
     EditArchitecture,
+    DownloadPopup,
     ArchConf,
     MemoryLayout,
     RegisterFileArch,
@@ -67,6 +69,7 @@ export default {
           components="btn_assembly,btn_simulator|btn_edit_architecture,btn_save_architecture||btn_configuration,btn_information"
           :browser="browser"
           :os="os"
+          :dark="dark"
           :arch_available="arch_available"
         />
 
@@ -79,8 +82,16 @@ export default {
           :dark="dark"
         />
 
-        <!-- Save architecture modal -->
-        <!-- <SaveArchitecture id="save_architecture" /> -->
+        <!-- Download architecture modal -->
+
+        <DownloadPopup
+          id="save_architecture"
+          type="architecture"
+          title="Download Architecture"
+          extension=".yml"
+          :fileData="arch_code"
+          default-filename="architecture"
+        />
 
         <!-- Architecture information -->
         <b-container fluid align-h="center" class="mx-0 px-0">

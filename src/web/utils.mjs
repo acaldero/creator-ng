@@ -112,13 +112,27 @@ export function hide_loading() {
     $("#loading").hide()
 }
 
+/**
+ * @typedef {Object} DefaultArchitecture
+ * @property {string} name Architecture name
+ * @property {Array<string>} alias Name aliases
+ * @property {string} file Architecture definition file name (inside /architectures/ folder)
+ * @property {string} img Architecture image file location (absolute)
+ * @property {string} alt Alternative name
+ * @property {string} id ID (select_conf<something>)
+ * @property {Array<string>} examples List of example sets
+ * @property {string} description 
+ * @property {string} guide Path to guide file (absolute) 
+ * @property {boolean} available Whether it's available or not
+ * @property {boolean} [default=true]
+ */
 
 /**
- * Loads the specified architecture
- * @param {Object} arch Architecture object, as defined in available_arch.json
+ * Loads the specified default architecture
+ * @param {DefaultArchitecture} arch Architecture object, as defined in available_arch.json
  * @param {Object} [root] Root Vue component (App)
  */
-export function loadArchitecture(arch, root = document.app) {
+export function loadDefaultArchitecture(arch, root = document.app) {
     // show_loading()
 
     // TODO: use Fetch API instead of jquery:
@@ -128,7 +142,7 @@ export function loadArchitecture(arch, root = document.app) {
     $.ajaxSetup({ async: false })
 
     $.get("architecture/" + arch.file + ".yml", cfg => {
-        const { status, errorcode, token } = newArchitectureLoad(cfg);
+        const { status, errorcode, token } = newArchitectureLoad(cfg, true);
 
         if (status === "ko") {
             show_notification(`[${errorcode}] ${token}`, "danger", root);
@@ -163,7 +177,50 @@ export function loadArchitecture(arch, root = document.app) {
 
         // hide_loading()
     });
+}
 
+/**
+ * @typedef {Object} CustomArchitecture
+ * @property {string} name Architecture name
+ * @property {Array<string>} alias Name aliases
+ * @property {string} img Architecture image file location (absolute)
+ * @property {string} id ID (select_conf<something>)
+ * @property {Array<string>} examples List of example sets
+ * @property {string} description 
+ * @property {string} definition Architection definition (YAML) 
+ * @property {boolean} available Whether it's available or not
+ */
+
+/**
+ * Loads the specified custom architecture
+ * @param {CustomArchitecture} arch Architecture object
+ * @param {Object} [root] Root Vue component (App)
+ */
+export function loadCustomArchitecture(arch, root = document.app) {
+    const { status, errorcode, token } = newArchitectureLoad(arch.definition);
+
+    if (status === "ko") {
+        show_notification(`[${errorcode}] ${token}`, "danger", root);
+
+        return;
+    }
+
+    // store code to be edited
+    root.arch_code = arch.definition;
+
+    //Refresh UI
+    show_notification(
+        arch.name + " architecture has been loaded correctly",
+        "success",
+        root,
+    );
+
+    // Google Analytics
+    creator_ga(
+        "architecture",
+        "architecture.loading",
+        "architectures.loading.preload_cache",
+    );
 }
 
 /**
@@ -259,4 +316,30 @@ export function formatRelativeDate(date) {
             .split(",")
             .shift() + " ago"
     );
+}
+
+/**
+ * Downloads a plain text file with the specified filename.
+ * 
+ * @param {String} data TXT data to store in file
+ * @param {String} filename Name of the file
+ * 
+ */
+export function downloadToTXTFile(data, filename) {
+    // yes, this is actually the way to do it in JS...
+
+    const downloadLink = document.createElement("a");
+    downloadLink.download = filename;
+    downloadLink.innerHTML = "My Hidden Link";
+
+    window.URL = window.URL || window.webkitURL;
+
+    downloadLink.href = window.URL.createObjectURL(
+        new Blob([data], { type: "text/plain" }),
+    );
+    downloadLink.onclick = destroyClickedElement;
+    downloadLink.style.display = "none";
+    document.body.appendChild(downloadLink);
+
+    downloadLink.click();
 }

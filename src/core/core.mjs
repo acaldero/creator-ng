@@ -26,13 +26,7 @@ import {
     register_value_deserialize,
 } from "./utils/bigint.mjs";
 import {
-    bin2hex,
-    double2bin,
-    float2bin,
     getHexTwosComplement,
-    hex2double,
-    isDeno,
-    isWeb,
 } from "./utils/utils.mjs";
 
 import { logger } from "./utils/creator_logger.mjs";
@@ -42,7 +36,6 @@ import {
     precomputeInstructions,
     setInstructions,
 } from "./compiler/compiler.mjs";
-import { executeProgramOneShot } from "./executor/executor.mjs";
 import { Memory } from "./memory/Memory.mts";
 import yaml from "js-yaml";
 import { crex_findReg } from "./register/registerLookup.mjs";
@@ -55,34 +48,8 @@ import {
 import { creator_ga } from "./utils/creator_ga.mjs";
 import { creator_callstack_reset } from "./sentinel/sentinel.mjs";
 import { resetStats } from "./executor/stats.mts";
+import { resetCache } from "./executor/decoder.mjs";
 
-// Conditional import for the WASM compiler based on the environment (web or Deno)
-
-import wasm_web_init, {
-    Color as Color_web,
-    ArchitectureJS as ArchitectureJS_web,
-} from "./compiler/web/creator_compiler.js";
-import {
-    Color as Color_deno,
-    ArchitectureJS as ArchitectureJS_deno,
-} from "./compiler/deno/creator_compiler.js";
-
-let Color;
-let ArchitectureJS;
-if (isDeno) {
-    // Deno HAS to be imported like this, as it doesn't provide a default
-    Color = Color_deno;
-    ArchitectureJS = ArchitectureJS_deno;
-} else if (isWeb) {
-    Color = Color_web;
-    ArchitectureJS = ArchitectureJS_web;
-    // in the web, we MUST call the default
-    wasm_web_init();
-} else {
-    throw new Error(
-        "Unsupported environment: neither Deno nor web browser detected",
-    );
-}
 
 export let code_assembly = "";
 export let update_binary = "";
@@ -128,17 +95,11 @@ export let main_memory;
 export let main_memory_backup;
 export function updateMainMemoryBackup(value) { main_memory_backup = value }
 
-export let architecture_available = [];
-export let load_architectures_available = [];
-export let load_architectures = [];
-export let back_card = [];
-export let memory_hash = ["data_memory", "instructions_memory", "stack_memory"];
 export let execution_mode = 0; // 0: instruction by instruction, 1: run program
 export function set_execution_mode(value) {
     execution_mode = value;
 } // it's the only way
 export let instructions_packed = 100;
-export let architecture_json = "";
 
 let code_binary = "";
 
@@ -981,8 +942,8 @@ function prepareArchitecture(
         return Math.max(max, instruction.nwords || 1);
     }, 1);
 
-    // Convert to JSON for WASM
-    const architectureJson = JSON.stringify(architectureObj);
+    // // Convert to JSON for WASM
+    // const architectureJson = JSON.stringify(architectureObj);
 
     // Dump the architecture JSON to a file for debugging
     if (dump) {
@@ -996,11 +957,6 @@ function prepareArchitecture(
                 `Could not write architecture file: ${writeError.message}`,
             );
         }
-    }
-
-    // Initialize WASM compiler if not skipped
-    if (!skipCompiler) {
-        arch = ArchitectureJS.from_json(architectureJson);
     }
 
     return architectureObj;
@@ -1053,6 +1009,9 @@ function transformArchConf(architectureObj) {
             return;
         }
         if (key === "ByteSize") {
+            return;
+        }
+        if (key === "Assemblers"){
             return;
         }
         // Add remaining properties as individual entries
@@ -1168,11 +1127,10 @@ export function load_library(lib_str) {
 
 // compilation
 
-export function assembly_compile(code, enable_color, compiler = "default") {
-    const ret = assembly_compiler(
+export async function assembly_compile(code, compiler) {
+    const ret = await assembly_compiler(
         code,
         false,
-        enable_color ? Color.Ansi : Color.Off,
         compiler,
     );
     switch (ret.status) {
@@ -1209,6 +1167,9 @@ export function reset() {
 
     // Reset stats
     resetStats()
+
+    // Reset decoder cache
+    resetCache();
 
     status.executedInstructions = 0;
     status.clkCycles = 0;

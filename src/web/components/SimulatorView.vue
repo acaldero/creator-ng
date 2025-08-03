@@ -53,6 +53,8 @@ export default {
     main_memory_busy: Boolean,
     display: String,
     keyboard: String,
+    caller_frame: Object,
+    callee_frame: Object,
   },
 
   components: {
@@ -107,7 +109,7 @@ export default {
 
         <!-- Examples modal -->
         <Examples
-          id="examples2"
+          id="examples-simulator"
           :architecture_name="architecture_name"
           :compile="true"
         />
@@ -137,7 +139,6 @@ export default {
             <!-- Registers view -->
             <RegisterFile
               v-if="data_mode == 'int_registers' || data_mode == 'fp_registers'"
-              id="register_file"
               :data_mode="data_mode"
               :reg_representation_int="reg_representation_int"
               :reg_representation_float="reg_representation_float"
@@ -152,6 +153,8 @@ export default {
               ref="memory"
               :selectedSegment="memory_segment"
               :dark="dark"
+              :callee_frame="callee_frame"
+              :caller_frame="caller_frame"
             />
 
             <!-- Stats view--->

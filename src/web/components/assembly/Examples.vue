@@ -19,7 +19,7 @@ along with CREATOR.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
 <script>
-import { useModalController } from "bootstrap-vue-next"
+import { useModal, useModalController } from "bootstrap-vue-next"
 
 import { creator_ga } from "@/core/utils/creator_ga.mjs"
 import { show_notification } from "@/web/utils.mjs"
@@ -37,10 +37,16 @@ export default {
 
   components: { MakeURI },
 
-  setup() {
+  setup(props) {
     // this HAS to be defined here
     const { hide } = useModalController()
-    return { hide }
+
+    // as we can have various of these components almost simultaneately (when
+    // transitioning from simulator to assembly, for example), we'll set an ID
+    // for the URI modal that is based on this component's own ID
+    const { show } = useModal(`${props.id}_uri`)
+
+    return { showLink: show, hide }
   },
 
   computed: {
@@ -151,22 +157,19 @@ export default {
     <!-- set selector -->
     <b-form-radio-group
       v-if="example_set_options.length > 0 && example_set_options.length < 3"
-      id="example_set"
       class="w-100 mb-3"
       v-model="selected_set"
       :options="example_set_options"
       button-variant="outline-secondary"
       size="sm"
-      name="radios-btn-default"
       buttons
     />
 
     <b-dropdown
+      v-if="example_set_options.length > 2"
       id="examples_dropdown"
       class="w-100 mb-3"
       size="sm"
-      text="Example sets available"
-      v-if="example_set_options.length > 2"
     >
       <b-dropdown-item
         v-for="item in example_set_options"
@@ -177,14 +180,16 @@ export default {
     </b-dropdown>
 
     <span
-      class="h6"
       v-if="
         example_set_options.length === 0 ||
         available_sets[selected_set]?.examples.length === 0
       "
+      class="h6"
     >
       There\'s no examples at the moment
     </span>
+
+    <!-- examples -->
 
     <b-list-group>
       <b-button-group
@@ -200,8 +205,12 @@ export default {
           </b-list-group-item>
         </b-col>
         <b-button
-          v-b-modal.example_uri
-          @click="selected_example = example.id"
+          @click="
+            () => {
+              selected_example = example.id
+              showLink()
+            }
+          "
           size="sm"
         >
           <font-awesome-icon :icon="['fas', 'link']" />
@@ -211,7 +220,7 @@ export default {
   </b-modal>
 
   <MakeURI
-    id="example_uri"
+    :id="`${id}_uri`"
     :architecture_name="architecture_name"
     :example_set="selected_set"
     :example_id="selected_example"

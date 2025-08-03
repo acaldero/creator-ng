@@ -55,6 +55,16 @@ import ArchitectureView from "./components/ArchitectureView.vue"
 import SimulatorView from "./components/SimulatorView.vue"
 import AssemblyView from "./components/AssemblyView.vue"
 
+const creatorASCII = `
+ ██████╗██████╗ ███████╗ █████╗ ████████╗ ██████╗ ██████╗ 
+██╔════╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
+██║     ██████╔╝█████╗  ███████║   ██║   ██║   ██║██████╔╝
+██║     ██╔══██╗██╔══╝  ██╔══██║   ██║   ██║   ██║██╔══██╗
+╚██████╗██║  ██║███████╗██║  ██║   ██║   ╚██████╔╝██║  ██║
+ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
+  didaCtic and geneRic assEmbly progrAmming simulaTOR
+`
+
 export default {
   name: "app",
   components: {
@@ -223,13 +233,9 @@ export default {
       memory_segment: "data",
 
       // Stack
-      callee_subrutine: "",
-      caller_subrutine: "",
+      callee_frame: undefined,
+      caller_frame: undefined,
       stack_pointer: 0,
-      begin_caller: 0,
-      end_caller: 0,
-      begin_callee: 0,
-      end_callee: 0,
 
       //
       // Stats
@@ -301,6 +307,8 @@ export default {
 
     // listener for window size changes
     window.addEventListener("resize", this.resizeHandler)
+
+    console.log(creatorASCII)
   },
 
   unmounted() {
@@ -594,6 +602,7 @@ export default {
 
   <SimulatorView
     v-if="creator_mode === 'simulator'"
+    ref="simulatorView"
     :data_mode="data_mode"
     :reg_representation_int="reg_representation_int"
     :reg_representation_float="reg_representation_float"
@@ -612,8 +621,9 @@ export default {
     :display="display"
     :keyboard="keyboard"
     :dark="dark"
-    ref="simulatorView"
     :key="simulatorViewKey"
+    :callee_frame="callee_frame"
+    :caller_frame="caller_frame"
   />
 </template>
 

@@ -76,7 +76,6 @@ export function kbd_read_float(keystroke, params) {
         show_notification(
             `Invalid input: '${keystroke}' is not a float`,
             "danger",
-            useToastController,
         );
         return null;
     }
@@ -94,7 +93,6 @@ export function kbd_read_double(keystroke, params) {
         show_notification(
             `Invalid input: '${keystroke}' is not a double`,
             "danger",
-            useToastController,
         );
         return null;
     }
@@ -231,6 +229,14 @@ export function keyboard_read(fn_post_read, fn_post_params) {
     if (status.run_program === 1) {
         $("#playExecution").trigger("click");
     }
+
+    // re-enable buttons
+    document.app.$root.$refs.simulatorView.$refs.toolbar.$refs.btngroup1.at(
+        0,
+    ).instruction_disable = false;
+    document.app.$root.$refs.simulatorView.$refs.toolbar.$refs.btngroup1.at(
+        0,
+    ).run_disable = false;
 
     return draw;
 }

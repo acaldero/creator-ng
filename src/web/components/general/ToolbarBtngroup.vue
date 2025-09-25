@@ -19,7 +19,7 @@ along with CREATOR.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
 <script>
-import { useModal } from "bootstrap-vue-next"
+import { useToggle } from "bootstrap-vue-next"
 
 import {
   assembly_compile,
@@ -53,9 +53,9 @@ export default {
 
   setup() {
     // BV Composeables, such as these, should only be used inside setup
-    const modalAssemblyError = useModal("modalAssemblyError")
+    const showAssemblyError = useToggle("modalAssemblyError").show
 
-    return { modalAssemblyError }
+    return { showAssemblyError }
   },
 
   data() {
@@ -126,13 +126,13 @@ export default {
       // enable execution buttons only if there are instructions to execute
       const prepared_for_execution = this.$root.instructions.length > 0
 
-      if (this.group.includes("btn_run")) {
+      if (this.group.includes("btn_run") && status.run_program !== 3) {
         this.run_disable = !prepared_for_execution
       }
-      if (this.group.includes("btn_reset")) {
+      if (this.group.includes("btn_reset") && status.run_program !== 3) {
         this.reset_disable = !prepared_for_execution
       }
-      if (this.group.includes("btn_instruction")) {
+      if (this.group.includes("btn_instruction") && status.run_program !== 3) {
         this.instruction_disable = !prepared_for_execution
       }
     }
@@ -232,13 +232,13 @@ export default {
 
     // Show error message in the compilation
     compile_error(msg) {
-      this.change_UI_mode("assembly")
+      // this.change_UI_mode("assembly")
 
       // set compilation msg
-      this.$root.modalAssemblyError.error = msg
+      this.$root.assemblyError = msg
 
       // show assembly error modal
-      this.modalAssemblyError.show()
+      this.showAssemblyError()
     },
 
     //Remove a loaded binary
@@ -399,6 +399,12 @@ export default {
 
       const ret = step()
 
+      if (status.run_program === 3) {
+        // mutex read
+        this.instruction_disable = true
+        this.run_disable = true
+      }
+
       if (typeof ret === "undefined") {
         console.log("Something weird happened :-S")
       }
@@ -554,7 +560,23 @@ export default {
         :key="index"
       >
         <!-- button_architecture -->
-        <b-dropdown
+
+        <b-button
+          v-if="item === 'btn_architecture'"
+          class="menuButton text-truncate"
+          size="sm"
+          variant="outline-secondary"
+          id="assembly_btn_sim"
+          @click="change_UI_mode('architecture')"
+        >
+          <font-awesome-icon :icon="['fas', 'screwdriver-wrench']" />
+          Architecture
+        </b-button>
+
+        <!--
+        Changing architecture from here is broken, if we fix it uncomment this
+        -->
+        <!-- <b-dropdown
           v-if="item === 'btn_architecture'"
           variant="outline-secondary"
           :toggle-class="{ menuButton: !dark, menuButtonDark: dark }"
@@ -577,7 +599,7 @@ export default {
           >
             {{ arch.name }}
           </b-dropdown-item-button>
-        </b-dropdown>
+        </b-dropdown> -->
 
         <!-- button_assembly -->
         <b-button
@@ -600,6 +622,7 @@ export default {
           variant="outline-secondary"
           id="sim_btn_arch"
           @click="change_UI_mode('simulator')"
+          icon=""
         >
           <font-awesome-icon :icon="['fas', 'gears']" />
           Simulator
@@ -790,7 +813,6 @@ export default {
           size="sm"
           variant="outline-secondary"
           v-b-modal.flash
-          :disabled="run_disable"
         >
           <font-awesome-icon :icon="['fab', 'usb']" />
           Flash

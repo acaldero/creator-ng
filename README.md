@@ -17,10 +17,22 @@ lockfile, which explicitly states the package versions.
 bun install
 ```
 
-> [!IMPORTANT]
-> You must build the CREATOR assembler before executing for the first time.  
-> See [CREATOR Assembler README](src/core/assembler/creatorAssembler/README.md).
+### Build CREATOR Dependencies
 
+> [!IMPORTANT]
+> Building the assembler requires installing [rustup](https://rustup.rs/),
+> [Deno](https://deno.com/), and [wasm-pack](https://drager.github.io/wasm-pack/).
+
+> [!IMPORTANT]
+> Make sure to initialize the submodules.
+> 
+> You can either add the `--recurse-submodules` flag when doing `git clone` or
+> do `git submodule update --init --recursive` once it is already cloned.
+
+```sh
+bun dev:wasm
+bun build:gateway
+```
 
 ### Compile Web and Hot-Reload for Development (with [Vite](https://vite.dev/))
 ```sh
@@ -40,8 +52,19 @@ bun dev:cli
 
 ### Building Web version for production
 ```sh
-bun run build:web
+bun build:web
 ```
+
+The resulting bundle will be saved to `dist/web/creatorV`.
+
+> [!TIP]
+> To test locally the bundle version:
+> ```bash
+> cd dist/web
+> python -m http.server 8080
+> ```
+> And go to [localhost:8080](https://localhost:8080/creatorV)
+
 <!--
 TODO: when the code is type-safe, replace build:web to:
 ```
@@ -64,7 +87,7 @@ bun lint
 ### Format with [Prettier](https://prettier.io/)
 
 ```sh
-bun format
+bun format <file/directory>
 ```
 
 ### Run Tests

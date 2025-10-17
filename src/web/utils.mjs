@@ -19,12 +19,10 @@
  *
  */
 
-import $ from "jquery";
-
 import humanizeDuration from "humanize-duration";
 
 import { creator_ga } from "@/core/utils/creator_ga.mjs";
-import { newArchitectureLoad, initCAPI } from "@/core/core.mjs";
+import { loadArchitecture } from "@/core/core.mjs";
 import { console_log as clog } from "@/core/utils/creator_logger.mjs";
 
 /*Stop the transmission of events to children*/
@@ -49,7 +47,8 @@ export let notifications = [];
  * Shows a notification on the UI and.
  *
  * @param {string} msg Notification message.
- * @param {string} type Type of notification, one of `'success'`, `'warning'` or `'danger'`.
+ * @param {string} type Type of notification, one of `'success'`, `'warning'` ,
+ * `'info'` or `'danger'`.
  * @param {Object} [root] Root Vue component (App)
  *
  */
@@ -95,11 +94,11 @@ export function show_loading() {
         return;
     }
 
-    // after half second show the loading spinner
-    loading_handler = setTimeout(function () {
-        $("#loading").show();
-        loading_handler = null;
-    }, 500);
+    // // after half second show the loading spinner
+    // loading_handler = setTimeout(function () {
+    //     $("#loading").show();
+    //     loading_handler = null;
+    // }, 500);
 }
 
 export function hide_loading() {
@@ -110,7 +109,7 @@ export function hide_loading() {
     }
 
     // disable loading spinner
-    $("#loading").hide();
+    // $("#loading").hide();
 }
 
 /**
@@ -133,17 +132,18 @@ export function hide_loading() {
  * @param {DefaultArchitecture} arch Architecture object, as defined in available_arch.json
  * @param {Object} [root] Root Vue component (App)
  */
-export function loadDefaultArchitecture(arch, root = document.app) {
+export async function loadDefaultArchitecture(arch, root = document.app) {
     // show_loading()
 
-    // TODO: use Fetch API instead of jquery:
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    try {
+        const response = await fetch("architecture/" + arch.file + ".yml");
 
-    //Synchronous JSON read
-    $.ajaxSetup({ async: false });
+        if (!response.ok) {
+            throw new Error("Architecture file not found");
+        }
 
-    $.get("architecture/" + arch.file + ".yml", cfg => {
-        const { status, errorcode, token } = newArchitectureLoad(cfg);
+        const cfg = await response.text();
+        const { status, errorcode, token } = loadArchitecture(cfg);
 
         if (status === "ko") {
             show_notification(`[${errorcode}] ${token}`, "danger", root);
@@ -169,7 +169,7 @@ export function loadDefaultArchitecture(arch, root = document.app) {
         );
 
         // hide_loading()
-    }).fail(() => {
+    } catch (_error) {
         show_notification(
             arch.name + " architecture is not currently available",
             "danger",
@@ -177,28 +177,16 @@ export function loadDefaultArchitecture(arch, root = document.app) {
         );
 
         // hide_loading()
-    });
+    }
 }
 
 /**
- * @typedef {Object} CustomArchitecture
- * @property {string} name Architecture name
- * @property {Array<string>} alias Name aliases
- * @property {string} img Architecture image file location (absolute)
- * @property {string} id ID (select_conf<something>)
- * @property {Array<string>} examples List of example sets
- * @property {string} description
- * @property {string} definition Architection definition (YAML)
- * @property {boolean} available Whether it's available or not
- */
-
-/**
  * Loads the specified custom architecture
- * @param {CustomArchitecture} arch Architecture object
+ * @param {AvailableArch} arch Architecture object
  * @param {Object} [root] Root Vue component (App)
  */
 export function loadCustomArchitecture(arch, root = document.app) {
-    const { status, errorcode, token } = newArchitectureLoad(arch.definition);
+    const { status, errorcode, token } = loadArchitecture(arch.definition);
 
     if (status === "ko") {
         show_notification(`[${errorcode}] ${token}`, "danger", root);
@@ -233,56 +221,74 @@ export function loadCustomArchitecture(arch, root = document.app) {
  * @param {Object} root Root Vue component (App)
  *
  */
-export function loadExample(
+export async function loadExample(
     architecture_name,
     set_name,
     example_id,
     root = document.app,
 ) {
-    $.ajaxSetup({ async: false });
-
-    $.getJSON(
+    try {
         // get specified example set
-        example_set.find(
+        const setUrl = example_set.find(
             set =>
                 set.architecture === architecture_name && set.id === set_name,
-        ),
-    )
-        .done(
-            // load list of examples of the set
-            example_list => {
-                $.ajaxSetup({ async: false });
-                // load code
-                $.get(
-                    // get code uri
-                    example_list.find(example => example.id === example_id)
-                        ?.url,
-                )
-                    .done(code => {
-                        root.assembly_code = code;
-
-                        // FIXME: as we can't compile (see above), we go to the
-                        // assembly view, when we should go to simulator view
-                        root.creator_mode = "assembly";
-
-                        show_notification(
-                            `Loaded example '${set_name}-${example_id}'`,
-                            "success",
-                            root,
-                        );
-                    })
-                    .fail(() =>
-                        show_notification(
-                            `'${example_id}' example not found`,
-                            "danger",
-                            root,
-                        ),
-                    );
-            },
-        )
-        .fail(() =>
-            show_notification(`'${set_name}' set not found`, "danger", root),
         );
+
+        if (!setUrl) {
+            show_notification(`'${set_name}' set not found`, "danger", root);
+            return;
+        }
+
+        const setResponse = await fetch(setUrl);
+
+        if (!setResponse.ok) {
+            show_notification(`'${set_name}' set not found`, "danger", root);
+            return;
+        }
+
+        // load list of examples of the set
+        const example_list = await setResponse.json();
+
+        // get code uri
+        const exampleUrl = example_list.find(
+            example => example.id === example_id,
+        )?.url;
+
+        if (!exampleUrl) {
+            show_notification(
+                `'${example_id}' example not found`,
+                "danger",
+                root,
+            );
+            return;
+        }
+
+        const codeResponse = await fetch(exampleUrl);
+
+        if (!codeResponse.ok) {
+            show_notification(
+                `'${example_id}' example not found`,
+                "danger",
+                root,
+            );
+            return;
+        }
+
+        const code = await codeResponse.text();
+        root.assembly_code = code;
+
+        // FIXME: as we can't compile (see above), we go to the
+        // assembly view, when we should go to simulator view
+        root.creator_mode = "assembly";
+
+        show_notification(
+            `Loaded example '${set_name}-${example_id}'`,
+            "success",
+            root,
+        );
+    } catch (_error) {
+        show_notification(`'${set_name}' set not found`, "danger", root);
+    }
 }
 
 /**
@@ -293,6 +299,11 @@ export function loadExample(
 export function storeBackup(root = document.app) {
     if (!root.assembly_code || !root.arch_code || !root.architecture_name) {
         clog("Unable to store backup", "WARN");
+        return;
+    }
+
+    if (!root.backup) {
+        // disabled in config
         return;
     }
 
@@ -353,8 +364,9 @@ export function downloadToFile(data, filename, mimetype = "text/plain") {
  * @param {String} url URL of the source file. It must start with `/`, e.g.
  * `"/gateway/esp32c.zip"`
  * @param {String} filename Name of the saved file
+ * @param {boolean} [notify=false] Whether to notify the file has been downloaded or not
  */
-export function downloadFile(url, filename) {
+export function downloadFile(url, filename, notify = false) {
     fetch(
         window.location.origin +
             window.location.pathname.replace(/\/+$/, "") +
@@ -376,7 +388,9 @@ export function downloadFile(url, filename) {
             a.click();
             window.URL.revokeObjectURL(url);
 
-            show_notification("File downloaded", "success");
+            if (notify) {
+                show_notification("File downloaded", "success");
+            }
         })
         .catch(() => show_notification("Error downloading file", "error"));
 }
@@ -386,11 +400,11 @@ export function downloadFile(url, filename) {
  * Transforms a value into a hextring.
  *
  * @param {number | bigint} value
- * @param {number} padding Padding, in bytes
+ * @param {number} [padding=0] Padding, in bytes
  *
  * @returns {string}
  */
-export function toHex(value, padding) {
+export function toHex(value, padding = 0) {
     return value
         .toString(16)
         .padStart(padding * 2, "0")

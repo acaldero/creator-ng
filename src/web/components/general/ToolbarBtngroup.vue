@@ -18,38 +18,41 @@ You should have received a copy of the GNU Lesser General Public License
 along with CREATOR.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
-<script>
+<script lang="ts">
+import { defineComponent, type PropType } from "vue"
 import { useToggle } from "bootstrap-vue-next"
 
 import {
   assembly_compile,
   set_execution_mode,
   status,
+  guiVariables,
   instructions_packed,
   reset,
   remove_library,
+  getPC,
 } from "@/core/core.mjs"
 import { resetStats } from "@/core/executor/stats.mts"
 import { instructions, setInstructions } from "@/core/assembler/assembler.mjs"
 import { step } from "@/core/executor/executor.mjs"
 import { creator_ga } from "@/core/utils/creator_ga.mjs"
 import { packExecute } from "@/core/utils/utils.mjs"
-import {
-  show_notification,
-  loadDefaultArchitecture,
-  storeBackup,
-} from "@/web/utils.mjs"
+import { show_notification, storeBackup } from "@/web/utils.mjs"
 import { rasmAssemble } from "@/core/assembler/rasm/web/rasm.mjs"
 import { assembleCreator } from "@/core/assembler/creatorAssembler/web/creatorAssembler.mjs"
+import type { Instruction } from "@/core/assembler/assembler"
 
-export default {
+export default defineComponent({
   props: {
     group: { type: Array, required: true },
-    instructions: Array,
+    instructions: Array as PropType<Instruction[]>,
     browser: { type: String, required: true },
     os: { type: String, required: true },
     dark: { type: Boolean, required: true },
-    architectures: { type: Array, required: false },
+    architectures: {
+      type: Array as PropType<AvailableArch[]>,
+      required: false,
+    },
     show_instruction_help: { type: Boolean, default: false },
   },
 
@@ -63,7 +66,7 @@ export default {
   data() {
     return {
       compiling: false,
-      reset_disable: false,
+      reset_disable: true,
       instruction_disable: false,
       run_disable: false,
       stop_disable: true,
@@ -75,7 +78,7 @@ export default {
       assembler_map: {
         default: assembleCreator,
         rasm: rasmAssemble,
-      },
+      } as { [key: string]: object },
     }
   },
   computed: {
@@ -86,14 +89,14 @@ export default {
       return found ? found.text : ""
     },
     arch_available() {
-      return this.architectures.filter(a => a.available)
+      return this.architectures!.filter(a => a.available)
     },
 
     instruction_values: {
       get() {
         return this.instructions
       },
-      set(value) {
+      set(value: Instruction[]) {
         setInstructions(value)
       },
     },
@@ -124,9 +127,9 @@ export default {
   },
 
   mounted() {
-    if (this.$root.creator_mode === "simulator") {
+    if ((this.$root as any).creator_mode === "simulator") {
       // enable execution buttons only if there are instructions to execute
-      const prepared_for_execution = this.$root.instructions.length > 0
+      const prepared_for_execution = (this.$root as any).instructions.length > 0
 
       if (this.group.includes("btn_run") && status.run_program !== 3) {
         this.run_disable = !prepared_for_execution
@@ -141,26 +144,18 @@ export default {
   },
 
   methods: {
-    help_event(event) {
-      creator_ga("send", "event", "help", `help.${event}`, `help.${event}`)
+    help_event(event: string) {
+      creator_ga("send", `help.${event}`, `help.${event}`)
     },
 
     //
     // Screen change
     //
 
-    change_UI_mode(e) {
-      if (this.$root.creator_mode !== e) {
-        this.$root.creator_mode = e
+    change_UI_mode(e: string) {
+      if ((this.$root as any).creator_mode !== e) {
+        ;(this.$root as any).creator_mode = e
       }
-    },
-
-    //
-    // Architecture Selector
-    //
-
-    load_arch_select(arch) {
-      loadDefaultArchitecture(arch)
     },
 
     //
@@ -168,25 +163,25 @@ export default {
     //
 
     new_assembly() {
-      this.$root.assembly_code = ""
+      ;(this.$root as any).assembly_code = ""
     },
 
     //Compile assembly code
     async assembly_compiler() {
       // reset simulator
-      this.$root.keyboard = ""
-      this.$root.display = ""
-      this.$root.enter = null
+      ;(this.$root as any).keyboard = ""
+      ;(this.$root as any).display = ""
+      ;(this.$root as any).enter = null
       reset()
 
       this.compiling = true // Change buttons status
 
       // Assemble
-      const assemblerFn = this.assembler_map[this.selectedCompiler]
+      const assemblerFn = this.assembler_map[this.selectedCompiler]!
       // If default, let assembly_compile use its internal default
       const ret = await (assemblerFn
-        ? assembly_compile(this.$root.assembly_code, assemblerFn)
-        : assembly_compile(this.$root.assembly_code))
+        ? assembly_compile((this.$root as any).assembly_code, assemblerFn)
+        : assembly_compile((this.$root as any).assembly_code))
 
       /* Reset stats */
 
@@ -227,11 +222,11 @@ export default {
     },
 
     // Show error message in the compilation
-    compile_error(msg) {
+    compile_error(msg: string) {
       // this.change_UI_mode("assembly")
 
       // set compilation msg
-      this.$root.assemblyError = msg
+      ;(this.$root as any).assemblyError = msg
 
       // show assembly error modal
       this.showAssemblyError()
@@ -249,20 +244,8 @@ export default {
 
     /**
      * Updates the execution table UI, according to the return value of an execution.
-     * @param {Object} ret {
-     *                   error: Boolean,
-     *                   msg: String | null,
-     *                   type: String | null,
-     *                   draw: {
-     *                     space: Array,
-     *                     info: Array,
-     *                     success: Array,
-     *                     warning: Array,
-     *                     danger: Array
-     *                   }
-     *                 }
      */
-    execution_UI_update(ret) {
+    execution_UI_update(ret: ExecutionResult | undefined) {
       // this is ugly, but it's the only way I found, because the computed
       // properties in PlotStats.vue / TableStats.vue / TableExecution.vue don't
       // react to changes done to `stats`
@@ -272,12 +255,12 @@ export default {
       }
 
       /* MEMORY */
-
-      this.$root.$refs.simulatorView.$refs.memory?.$refs?.memory_table?.refresh()
+      ;(
+        this.$root as any
+      ).$refs.simulatorView.$refs.memory?.$refs?.memory_table?.refresh()
 
       /* STATS */
-
-      this.$root.$refs.simulatorView.$refs.stats?.refresh()
+      ;(this.$root as any).$refs.simulatorView.$refs.stats?.refresh()
 
       /* EXECUTION TABLE */
 
@@ -287,58 +270,74 @@ export default {
       // we use this style of loop instead of a `for (const [i, instruction] of
       // this.instruction_values.entries())` because we have to update through
       // `this.instruction_values` so the computed property is updated
-      for (let i = 0; i < this.instruction_values.length; i++) {
-        // clear type
-        this.instruction_values[i]._rowVariant = ""
+      const currentPC = getPC()
+      const previousPC = guiVariables.previous_PC
+      const keep_highlighted = guiVariables.keep_highlighted
+      for (let i = 0; i < this.instruction_values!.length; i++) {
+        // _rowVariant is the color of the row
+        // It's called _rowVariant because bootstrap-vue uses that name
+        this.instruction_values![i]!._rowVariant = ""
+        switch (BigInt(this.instruction_values![i]!.Address)) {
+          case keep_highlighted:
+            this.instruction_values![i]!._rowVariant = "warning"
+            break
 
-        for (const [type, toUpdate] of Object.entries(ret.draw)) {
-          if (
-            toUpdate.includes(i) &&
-            ["success", "info", "warning", "danger"].includes(type)
-          ) {
-            // update instruction type
-            this.instruction_values[i]._rowVariant = type
-          }
+          case previousPC:
+            this.instruction_values![i]!._rowVariant = "info"
+            break
+
+          case currentPC:
+            this.instruction_values![i]!._rowVariant = "success"
+            break
+
+          default:
+            break
         }
       }
 
       // Auto-scroll
 
       if (
-        this.$root.autoscroll &&
+        (this.$root as any).autoscroll &&
         status.run_program !== 1 &&
-        this.instructions.length > 0
+        this.instructions!.length > 0
       ) {
         // scroll to next instruction
 
         if (
           status.execution_index >= 0 &&
-          status.execution_index < this.instructions.length
+          status.execution_index < this.instructions!.length
         ) {
           let row = status.execution_index + 1 // next instruction
-          if (status.execution_index + 1 === this.instructions.length) {
+          if (status.execution_index + 1 === this.instructions!.length) {
             // last instruction, use current instruction instead
             row = status.execution_index
           }
 
-          const row_pos = $(
-            "#inst_table__row_" + this.instructions[row].Address,
-          ).position()
+          const rowElement = document.querySelector(
+            "#inst_table__row_" + this.instructions![row]!.Address,
+          ) as HTMLElement
+          const tableElement = document.querySelector(".instructions_table")
 
-          if (row_pos) {
-            $(".instructions_table").animate(
-              {
-                scrollTop: row_pos.top - $(".instructions_table").height() / 2,
-              },
-              300,
-            )
+          if (rowElement && tableElement) {
+            const rowPos = rowElement.offsetTop
+            const tableHeight = tableElement.clientHeight
+
+            tableElement.scrollTo({
+              top: rowPos - tableHeight / 2,
+              behavior: "smooth",
+            })
           }
         } else {
           // scroll to top
-          $(".instructions_table").animate(
-            { scrollTop: $(".instructions_table").height() },
-            300,
-          )
+          const tableElement = document.querySelector(".instructions_table")
+
+          if (tableElement) {
+            tableElement.scrollTo({
+              top: tableElement.scrollHeight,
+              behavior: "smooth",
+            })
+          }
         }
       }
     },
@@ -347,7 +346,7 @@ export default {
      * Resets the execution table's UI
      */
     execution_UI_reset() {
-      const draw = {
+      const draw: ExecutionDraw = {
         space: [],
         info: [],
         success: [],
@@ -356,7 +355,7 @@ export default {
         flash: [],
       }
 
-      for (let i = 0; i < this.instructions.length; i++) {
+      for (let i = 0; i < this.instructions!.length; i++) {
         draw.space.push(i)
       }
 
@@ -368,20 +367,25 @@ export default {
     },
 
     // Reset execution
-    reset(reset_graphic) {
+    reset() {
       // Google Analytics
       creator_ga("execute", "execute.reset", "execute.reset")
 
       // UI: reset I/O
-      this.$root.keyboard = ""
-      this.$root.display = ""
-      this.$root.enter = null
+      ;(this.$root as any).keyboard = ""
+      ;(this.$root as any).display = ""
+      ;(this.$root as any).enter = null
 
-      reset(reset_graphic)
+      // reset button status
+      this.reset_disable = false
+      this.instruction_disable = false
+      this.run_disable = false
+      this.stop_disable = true
+
+      reset()
 
       this.execution_UI_reset()
-
-      this.$root.$refs.simulatorView.$refs.registerFile?.refresh() // refresh registers
+      ;(this.$root as any).$refs.simulatorView.$refs.registerFile?.refresh() // refresh registers
     },
 
     // Execute one instruction
@@ -391,7 +395,29 @@ export default {
 
       set_execution_mode(0)
 
-      const ret = step()
+      let ret
+      try {
+        ret = step() as unknown as ExecutionResult
+      } catch (err: any) {
+        console.error("Execution error:", err)
+        show_notification(`Execution error: ${err.message || err}`, "danger")
+
+        // Mark current instruction with error
+        if (
+          status.execution_index >= 0 &&
+          status.execution_index < this.instruction_values!.length
+        ) {
+          this.instruction_values![status.execution_index]!._rowVariant =
+            "danger"
+        }
+
+        // Stop execution
+        status.execution_index = -1
+        status.error = true
+
+        this.execution_UI_update({ error: true, msg: err.message || err })
+        return
+      }
 
       if (status.run_program === 3) {
         // mutex read
@@ -404,7 +430,7 @@ export default {
       }
 
       if (ret.msg) {
-        show_notification(ret.msg, ret.type)
+        show_notification(ret.msg, ret.type!)
       }
 
       if (ret.draw !== null) {
@@ -414,8 +440,6 @@ export default {
 
     //Execute all program
     execute_program() {
-      let ret
-
       // Google Analytics
       creator_ga("execute", "execute.run", "execute.run")
 
@@ -425,7 +449,7 @@ export default {
         status.run_program = 1
       }
 
-      if (this.instructions.length === 0) {
+      if (this.instructions!.length === 0) {
         show_notification("No instructions in memory", "danger")
         status.run_program = 0
         return
@@ -446,12 +470,13 @@ export default {
       this.instruction_disable = true
       this.run_disable = true
       this.stop_disable = false
-      this.$root.main_memory_busy = true
 
-      this.execute_program_packed(ret, this)
+      this.execute_program_packed()
     },
 
-    execute_program_packed(ret) {
+    execute_program_packed() {
+      let ret = undefined
+
       for (
         let i = 0;
         i < instructions_packed && status.execution_index >= 0;
@@ -460,7 +485,7 @@ export default {
         if (
           status.run_program === 0 || // stop button pressed
           status.run_program === 3 || // wait for user input at keyboard
-          (instructions[status.execution_index].Break === true &&
+          (instructions[status.execution_index]?.Break === true &&
             status.run_program !== 2) // stop because a breakpoint
         ) {
           this.execution_UI_update(ret)
@@ -470,9 +495,8 @@ export default {
           this.instruction_disable = false
           this.run_disable = false
           this.stop_disable = true
-          this.$root.main_memory_busy = false
 
-          if (instructions[status.execution_index].Break === true) {
+          if (instructions[status.execution_index]?.Break === true) {
             status.run_program = 2 //In case breakpoint --> stop
           }
           return
@@ -481,7 +505,40 @@ export default {
             status.run_program = 1
           }
 
-          ret = step()
+          try {
+            ret = step() as unknown as ExecutionResult
+          } catch (err: any) {
+            // Handle execution error without crashing
+            console.error("Execution error:", err)
+            show_notification(
+              `Execution error: ${err.message || err}`,
+              "danger",
+            )
+
+            // Mark current instruction with error
+            if (
+              status.execution_index >= 0 &&
+              status.execution_index < this.instruction_values!.length
+            ) {
+              this.instruction_values![status.execution_index]!._rowVariant =
+                "danger"
+            }
+
+            // Stop execution
+            status.run_program = 0
+            status.execution_index = -1
+            status.error = true
+
+            this.execution_UI_update({ error: true, msg: err.message || err })
+
+            //Change buttons status
+            this.reset_disable = false
+            this.instruction_disable = false
+            this.run_disable = false
+            this.stop_disable = true
+
+            return
+          }
 
           if (typeof ret === "undefined") {
             console.log("Something weird happened :-S")
@@ -494,13 +551,12 @@ export default {
             this.instruction_disable = false
             this.run_disable = false
             this.stop_disable = true
-            this.$root.main_memory_busy = false
 
             return
           }
 
-          if (ret.msg !== null) {
-            show_notification(ret.msg, ret.type)
+          if (ret.msg) {
+            show_notification(ret.msg, ret.type!)
 
             this.execution_UI_update(ret)
 
@@ -509,7 +565,6 @@ export default {
             this.instruction_disable = false
             this.run_disable = false
             this.stop_disable = true
-            this.$root.main_memory_busy = false
           }
         }
       }
@@ -523,12 +578,8 @@ export default {
         this.instruction_disable = false
         this.run_disable = false
         this.stop_disable = true
-        this.$root.main_memory_busy = false
       }
     },
-
-    //Flash program
-    flash_program() {},
 
     //Stop program excution
     stop_execution() {
@@ -539,10 +590,9 @@ export default {
       this.instruction_disable = false
       this.run_disable = false
       this.stop_disable = true
-      this.$root.main_memory_busy = false
     },
   },
-}
+})
 </script>
 
 <template>
@@ -587,13 +637,10 @@ export default {
             <span @click="change_UI_mode('architecture')"> Architecture </span>
           </template>
 
-          <b-dropdown-item-button
-            v-for="arch in arch_available"
-            @click="load_arch_select(arch)"
-          >
-            {{ arch.name }}
-          </b-dropdown-item-button>
-        </b-dropdown> -->
+<b-dropdown-item-button v-for="arch in arch_available" @click="load_arch_select(arch)">
+  {{ arch.name }}
+</b-dropdown-item-button>
+</b-dropdown> -->
 
         <!-- button_assembly -->
         <b-button
@@ -616,7 +663,6 @@ export default {
           variant="outline-secondary"
           id="sim_btn_arch"
           @click="change_UI_mode('simulator')"
-          icon=""
         >
           <font-awesome-icon :icon="['fas', 'gears']" />
           Simulator
@@ -759,7 +805,7 @@ export default {
               size="sm"
               variant="outline-secondary"
               accesskey="x"
-              @click="reset(true)"
+              @click="reset()"
               :disabled="reset_disable"
             >
               <font-awesome-icon :icon="['fas', 'power-off']" />
@@ -767,7 +813,7 @@ export default {
             </b-button>
           </template>
 
-          {{ this.accesskey_prefix }}X
+          {{ accesskey_prefix }}X
         </b-tooltip>
 
         <!-- button_instruction -->
@@ -786,7 +832,7 @@ export default {
             </b-button>
           </template>
 
-          {{ this.accesskey_prefix }}A
+          {{ accesskey_prefix }}A
         </b-tooltip>
 
         <!-- button_run -->
@@ -806,7 +852,7 @@ export default {
             </b-button>
           </template>
 
-          {{ this.accesskey_prefix }}R
+          {{ accesskey_prefix }}R
         </b-tooltip>
 
         <!-- button_flash -->
@@ -838,7 +884,7 @@ export default {
             </b-button>
           </template>
 
-          {{ this.accesskey_prefix }}C
+          {{ accesskey_prefix }}C
         </b-tooltip>
 
         <!-- button_examples -->
@@ -955,11 +1001,13 @@ export default {
 .menuButton {
   background-color: #f8f9fa;
 }
+
 :deep(.menuButtonDark),
 .menuButtonDark {
   background-color: #212529;
   color: $secondary;
 }
+
 :deep(.menuButtonDark:hover),
 .menuButtonDark:hover {
   background-color: #424649;
@@ -978,6 +1026,7 @@ export default {
     background-color: #212529;
     color: $secondary;
   }
+
   .menuButton:hover {
     background-color: #424649;
   }
@@ -989,10 +1038,12 @@ export default {
   .actionsGroup:hover {
     background-color: #424649;
   }
+
   .infoButton {
     background-color: #a3a815;
     color: #f5f5f5;
   }
+
   .infoButton:hover {
     background-color: #424649;
   }

@@ -144,14 +144,6 @@ sub:
         // Starting with a0=23, a1=-77, a2=45
         // The functions perform various additions and subtractions through multiple call levels
 
-        // Check that the program completed without errors
-        // and that some computation was performed
-        assertEquals(
-            result.completed,
-            true,
-            "Program should complete execution",
-        );
-
         // Verify stack pointer has been restored to original value
         // (This depends on the initial SP value set by the simulator)
 

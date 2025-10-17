@@ -7,7 +7,6 @@ import {
 } from "../simulator-test-utils.mts";
 
 Deno.test("MIPS Function Calls", async () => {
-    return; // TODO: fix this test
     const testAssembly = `
 
 #

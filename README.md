@@ -55,15 +55,16 @@ bun dev:cli
 bun build:web
 ```
 
-The resulting bundle will be saved to `dist/web/creatorV`.
+The resulting bundle will be saved to `dist/web/`.
 
 > [!TIP]
-> To test locally the bundle version:
+> To test locally the bundle version, as it will be deployed in GitHub Pages:
 > ```bash
+> REPO="creatorV" bun build:web
 > cd dist/web
 > python -m http.server 8080
 > ```
-> And go to [localhost:8080](https://localhost:8080/creatorV)
+> And go to [localhost:8080/creatorV/](https://localhost:8080/creatorV/)
 
 <!--
 TODO: when the code is type-safe, replace build:web to:
@@ -150,3 +151,30 @@ We'll need to [launch the application in DEV mode](#compile-and-hot-reload-for-d
     "attachSimplePort": 9229
 }
 ```
+
+
+## Resources
+
+### General
+- [MDN Web Docs](https://developer.mozilla.org/)
+- [The TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+- [D. Camarmas et al. - CREATOR: Simulador didáctico y genérico para la programación en ensamblador](https://zenodo.org/records/5130302)
+
+
+### Web
+- [Vue.js guide](https://vuejs.org/guide/)
+- [BoostrapVueNext Docs](https://bootstrap-vue-next.github.io/bootstrap-vue-next/) & [Bootstrap Docs](https://getbootstrap.com/docs/)
+- [Font Awesome Icons](https://fontawesome.com/search?ic=free) & [Font Awesome Docs](https://docs.fontawesome.com/)
+- [CSS Tricks](https://css-tricks.com/)
+- [vue-codemirror6](https://github.com/logue/vue-codemirror6) & [Codemirror Docs](https://codemirror.net/docs/)
+- [vue3-apexcharts](https://github.com/apexcharts/vue3-apexcharts) & [ApexCharts Docs](https://apexcharts.com/docs)
+- [`vue-tricks.md`](docs/vue-tricks.md)
+
+
+### Compiler
+- [A. Guerrero - Desarrollo de un Compilador Genérico de Lenguaje Ensamblador para el Simulador CREATOR](https://github.com/ALVAROPING1/TFG)
+- [The Rust Programming Language](https://doc.rust-lang.org/book/title-page.html)
+- [Compiler Contribution Docs](https://github.com/ALVAROPING1/CreatorCompiler/blob/master/CONTRIBUTING.md)
+- [Serde (Deserialization Library) Docs](https://docs.rs/serde/)
+- [Chumsky (Parser Library) Docs](https://docs.rs/chumsky)
+- [Ariadne (Error Renderer Library) Docs](https://docs.rs/ariadne)
